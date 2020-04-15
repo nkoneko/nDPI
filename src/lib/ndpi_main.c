@@ -4069,7 +4069,6 @@ void check_ndpi_other_flow_func(struct ndpi_detection_module_struct *ndpi_str,
   }
 }
 
-
 void check_ndpi_udp_flow_func(struct ndpi_detection_module_struct *ndpi_str,
 			      struct ndpi_flow_struct *flow,
 			      NDPI_SELECTION_BITMASK_PROTOCOL_SIZE *ndpi_selection_packet) {
@@ -4741,7 +4740,7 @@ ndpi_protocol ndpi_detection_process_packet(struct ndpi_detection_module_struct 
 
   if(flow->server_id == NULL) flow->server_id = dst; /* Default */
 
-  if(flow->detected_protocol_stack[0] != NDPI_PROTOCOL_UNKNOWN) {
+  if(flow->detected_protocol_stack[0] != NDPI_PROTOCOL_UNKNOWN && flow->detected_protocol_stack[0] != NDPI_PROTOCOL_DHCP) {
     if(flow->check_extra_packets) {
       ndpi_process_extra_packet(ndpi_str, flow, packet, packetlen, current_tick_l, src, dst);
       /* Update in case of new match */
@@ -4749,6 +4748,8 @@ ndpi_protocol ndpi_detection_process_packet(struct ndpi_detection_module_struct 
       goto invalidate_ptr;
     } else
       goto ret_protocols;
+  } else if (flow->detected_protocol_stack[0] == NDPI_PROTOCOL_DHCP && flow->l4.udp.dhcp_ack_processed) {
+    goto ret_protocols;
   }
 
   /* need at least 20 bytes for ip header */
@@ -6666,6 +6667,10 @@ u_int8_t ndpi_extra_dissection_possible(struct ndpi_detection_module_struct *ndp
 
   case NDPI_PROTOCOL_TELNET:
     if(!flow->protos.telnet.password_detected)
+      return(1);
+    break;
+  case NDPI_PROTOCOL_DHCP:
+    if (!flow->l4.udp.dhcp_ack_processed)
       return(1);
     break;
   }

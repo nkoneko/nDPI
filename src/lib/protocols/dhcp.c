@@ -57,7 +57,6 @@ static void ndpi_int_dhcp_add_connection(struct ndpi_detection_module_struct *nd
   ndpi_set_detected_protocol(ndpi_struct, flow, NDPI_PROTOCOL_DHCP, NDPI_PROTOCOL_UNKNOWN);
 }
 
-
 void ndpi_search_dhcp_udp(struct ndpi_detection_module_struct *ndpi_struct, struct ndpi_flow_struct *flow)
 {
   struct ndpi_packet_struct *packet = &flow->packet;
@@ -99,6 +98,12 @@ void ndpi_search_dhcp_udp(struct ndpi_detection_module_struct *ndpi_struct, stru
 	    u_int8_t msg_type = dhcp->options[i+2];
 
 	    if(msg_type <= 8) foundValidMsgType = 1;
+        if (msg_type == 0x05) // Ack
+        {
+            flow->protos.dhcp.yiaddr = dhcp->yiaddr;
+            memcpy(flow->protos.dhcp.macaddr, dhcp->chaddr, 6);
+            flow->l4.udp.dhcp_ack_processed = 1;
+        }
 	  } else if(id == 55 /* Parameter Request List / Fingerprint */) {
 	    u_int idx, offset = 0;
 	    
@@ -123,14 +128,18 @@ void ndpi_search_dhcp_udp(struct ndpi_detection_module_struct *ndpi_struct, stru
 	    char *name = (char*)&dhcp->options[i+2];
 	    int j = 0;
 	    
-#ifdef DHCP_DEBUG
 	    NDPI_LOG_DBG2(ndpi_struct, "[DHCP] '%.*s'\n",name,len);
 	      //	    while(j < len) { printf( "%c", name[j]); j++; }; printf("\n");
-#endif
 	    j = ndpi_min(len, sizeof(flow->host_server_name)-1);
 	    strncpy((char*)flow->host_server_name, name, j);
 	    flow->host_server_name[j] = '\0';	    
-	  }
+	  } else if (id == 51 /* Lease Time */) {
+        if (flow->l4.udp.dhcp_ack_processed)
+        {
+          u_int32_t *please_time = (u_int32_t*) &dhcp->options[i + 2];
+          flow->protos.dhcp.lease_time = ntohl(*please_time);
+        }
+      }
 
 	  i += len + 2;
 	}

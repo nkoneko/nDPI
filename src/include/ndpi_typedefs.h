@@ -767,6 +767,8 @@ struct ndpi_flow_udp_struct {
   /* NDPI_PROTOCOL_WIREGUARD */
   u_int8_t wireguard_stage;
   u_int32_t wireguard_peer_index[2];
+
+  u_int8_t dhcp_ack_processed;
 };
 
 /* ************************************************** */
@@ -1275,6 +1277,9 @@ struct ndpi_flow_struct {
     } bittorrent;
 
     struct {
+      u_int32_t yiaddr;
+      u_int32_t lease_time;
+      u_int8_t macaddr[6];
       char fingerprint[48];
       char class_ident[48];
     } dhcp;
